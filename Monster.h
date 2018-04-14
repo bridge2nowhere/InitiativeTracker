@@ -9,17 +9,19 @@ class Monster{
 		char* 	mName;
 		bool	inCombat;
 		byte 	initRoll;
-		byte		currhp;
+		byte	currhp;
 		
-		byte		hp;
-		byte		initMod;
+		int		hp;
+		byte	initMod;
 		bool	npc;
+		char*	details;
 		
 		
-		Monster(char* n, byte r,byte h, byte i, bool p);
+		Monster(char* n, byte r,byte h, int i, bool p, char* d);
 		void roll();
 		void engage();
 		void kill();
+		void takeHit(int howHard);
 	
 		
 

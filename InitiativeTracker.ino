@@ -1,10 +1,7 @@
 #include <SSD1306Ascii.h>
-//#include <SSD1306AsciiAvrI2c.h>
 #include <SSD1306AsciiSoftSpi.h>
 #include <SSD1306AsciiSpi.h>
-//#include <SSD1306AsciiWire.h>
 #include <SSD1306init.h>
-
 #include <CircularBuffer.h>
 #include <Keypad.h>
 #include <Monster.h>
@@ -48,25 +45,25 @@ Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, rows, cols );
 //----------------------------------------------------------------------------------------------
 //Variables
 const unsigned int MAX_INPUT = 10;
-const int TOMB_LENGTH = 11;     //the length of the master tomb of players and monsters
-CircularBuffer<byte,TOMB_LENGTH> turnOrderC;
-//int turnOrder[TOMB_LENGTH];    //holds the turn order
+const int TOME_LENGTH = 11;     //the length of the master tome of players and monsters
+CircularBuffer<byte,TOME_LENGTH> turnOrderC;
+//int turnOrder[TOME_LENGTH];    //holds the turn order
 byte turnPosition = 0;           //holds the turn position
 byte turnCounter = 0;
 byte roundCounter = 1;
 
-Monster tomb[TOMB_LENGTH] = {
-  {"vek",18,3,4, false},   //0
-  {"bob",21,3,4, false},
-  {"jeff",15,3,4, true},
-  {"dale",17,3,4, true},   
-  {"keith",8,3,4, true},   
-  {"evan",23,3,4, true},  //5
-  {"goblin1",14,3,4, true},   
-  {"goblin2",1,3,4, true},
-  {"goblin2",1,3,4, true},
-  {"goblin3",1,3,4, true},
-  {"goblin4",1,3,4, true}, //10
+Monster tome[TOME_LENGTH] = {
+  {"vek",18,3,4, false, "PC"},   //0
+  {"bob",21,3,4, false, "PC"},
+  {"jeff",15,3,4, true, "AC=15"},
+  {"dale",17,3,4, true, "AC=15"},   
+  {"keith",8,3,4, true,"AC=15"},   
+  {"evan",23,3,4, true, "AC=15"},  //5
+  {"goblin1",14,3,4, true, "AC=15"},   
+  {"goblin2",1,3,4, true, "AC=15"},
+  {"goblin2",1,3,4, true, "AC=15"},
+  {"goblin3",1,3,4, true, "AC=15"},
+  {"goblin4",1,3,4, true, "AC=15"}, //10
 };
 
 //-----------------------------------------------------------------------------------------------
@@ -121,8 +118,8 @@ void loop() {
 void determineTurnOrder(){
   turnOrderC.clear();
   for(int i = 40; i >= 0; i --){
-    for(int a = 0; a < TOMB_LENGTH; a++){
-      if(tomb[a].initRoll == i && tomb[a].inCombat == true){
+    for(int a = 0; a < TOME_LENGTH; a++){
+      if(tome[a].initRoll == i && tome[a].inCombat == true){
         turnOrderC.push(a);
       }
     }
@@ -135,12 +132,12 @@ void serialPrintEngage() {
   Serial.print(roundCounter);
   Serial.println("");
   for(byte a = 0; a < turnOrderC.size(); a++){
-      Serial.print(tomb[turnOrderC[a]].mName);
+      Serial.print(tome[turnOrderC[a]].mName);
       Serial.print("\t");
       Serial.print("\t");
-      Serial.print(tomb[turnOrderC[a]].initRoll);
+      Serial.print(tome[turnOrderC[a]].initRoll);
       //Serial.print("\t");
-      //Serial.print(tomb[turnOrderC[a]].hp);
+      //Serial.print(tome[turnOrderC[a]].hp);
       Serial.println("");
   }
 }
@@ -154,9 +151,9 @@ void oledPrintEngage(){
   delay(1000);
   oled.setFont(Callibri11);
   for(byte a = 0; a < turnOrderC.size(); a++){
-      oled.print(tomb[turnOrderC[a]].mName);
+      oled.print(tome[turnOrderC[a]].mName);
       oled.print("--");
-      oled.print(tomb[turnOrderC[a]].initRoll);
+      oled.print(tome[turnOrderC[a]].initRoll);
       oled.println("");
       delay(1000);
   }
@@ -168,9 +165,9 @@ void oledPrintEngage(){
 
   oled.setFont(Callibri11);
   for(byte a = 0; a < 2; a++){
-      oled.print(tomb[turnOrderC[a]].mName);
+      oled.print(tome[turnOrderC[a]].mName);
       oled.print("--");
-      oled.print(tomb[turnOrderC[a]].initRoll);
+      oled.print(tome[turnOrderC[a]].initRoll);
       oled.println("");
       
   }
@@ -197,9 +194,9 @@ void process_data (const char * data){
   }
   else{
     int dataNumType = atoi(data);
-    tomb[dataNumType].engage();
-    if(tomb[dataNumType].npc == true){
-      tomb[dataNumType].roll();
+    tome[dataNumType].engage();
+    if(tome[dataNumType].npc == true){
+      tome[dataNumType].roll();
     }
   }
 }  // end of process_data
@@ -260,14 +257,14 @@ void setPCinitiative (const char * data){
   int pcMonsterInt = atoi(pcMonster);
   char pcInit[3] = {data[3],data[4],'\0'};
   int pcInitInt = atoi(pcInit);
-  tomb[pcMonsterInt].initRoll = pcInitInt;
-  tomb[pcMonsterInt].engage();
+  tome[pcMonsterInt].initRoll = pcInitInt;
+  tome[pcMonsterInt].engage();
 }
 
 void killMonster (const char * data){
   char cMon[3] = {data[1],data[2],'\0'};
   int cMonInt = atoi(cMon);
-  tomb[cMonInt].kill();
+  tome[cMonInt].kill();
 }
 
 void nextTurn(){
@@ -276,23 +273,20 @@ void nextTurn(){
   if(turnCounter == turnOrderC.size()){
     turnCounter = 0;
     roundCounter ++;
+    determineTurnOrder();
   }  
-  serialPrintEngage();
-  oledPrintEngage();
+  else{
+    serialPrintEngage();
+    oledPrintEngage();
+  }
 }
 
 
 void takeHit (const char * data){
   char npcMonster[3] = {data[0],data[1],'\0'};
   int npcMonsterInt = atoi(npcMonster);
-  char npcHP[3] = {data[3],data[4],'\0'};
-  int npcHPInt = atoi(npcHP);
-  tomb[npcMonsterInt].hp -=  npcHPInt;
-  if(tomb[npcMonsterInt].hp <= 0){
-    tomb[npcMonsterInt].kill();
-    serialPrintEngage();
-    oledPrintEngage();
-  }
-
+  char npcHit[3] = {data[3],data[4],'\0'};
+  int npcHitInt = atoi(npcHit);
+  tome[npcMonsterInt].takeHit(npcHitInt);
 }
 

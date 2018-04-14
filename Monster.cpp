@@ -1,6 +1,6 @@
 #include "Monster.h"
 
-Monster::Monster(char* n, byte r,byte h, byte i, bool p){
+Monster::Monster(char* n, byte r,byte h, int i, bool p, char* d){
 	mName = n;
 	inCombat = false;
 	initRoll = r;
@@ -8,6 +8,7 @@ Monster::Monster(char* n, byte r,byte h, byte i, bool p){
 	currhp = hp;
 	initMod = i;
 	npc = p;
+	details = d;
 	
 }
 
@@ -22,4 +23,11 @@ void Monster::engage(){
 
 void Monster::kill(){
 	inCombat = false;
+}
+
+void Monster::takeHit(int howHard){
+	currhp -= howHard;
+	if (currhp <= 0){
+		kill();
+	}
 }
