@@ -4,7 +4,7 @@
 #include <SSD1306init.h>
 #include <CircularBuffer.h>
 #include <Keypad.h>
-#include <Monster.h>
+#include "Monster.h"
 //Monster(char* mName,bool inCombat, int initRoll,int hp, int initMod)
 //.roll() updates initRoll with D20+initMod
 //.engage() move to combat
