@@ -45,7 +45,7 @@ Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, rows, cols );
 //----------------------------------------------------------------------------------------------
 //Variables
 const unsigned int MAX_INPUT = 10;
-const int TOME_LENGTH = 11;     //the length of the master tome of players and monsters
+const int TOME_LENGTH = 12;     //the length of the master tome of players and monsters
 CircularBuffer<byte,TOME_LENGTH> turnOrderC;
 //int turnOrder[TOME_LENGTH];    //holds the turn order
 byte turnPosition = 0;           //holds the turn position
@@ -53,17 +53,18 @@ byte turnCounter = 0;
 byte roundCounter = 1;
 
 Monster tome[TOME_LENGTH] = {
-  {"vek",18,3,4, false, "PC"},   //0
-  {"bob",21,3,4, false, "PC"},
-  {"jeff",15,3,4, true, "AC=15"},
-  {"dale",17,3,4, true, "AC=15"},   
-  {"keith",8,3,4, true,"AC=15"},   
-  {"evan",23,3,4, true, "AC=15"},  //5
-  {"goblin1",14,3,4, true, "AC=15"},   
-  {"goblin2",1,3,4, true, "AC=15"},
-  {"goblin2",1,3,4, true, "AC=15"},
-  {"goblin3",1,3,4, true, "AC=15"},
-  {"goblin4",1,3,4, true, "AC=15"}, //10
+  {"Thio Ki",1,25,4, false, "PC Human Wizard"},   
+  {"Zenwan",1,27,2, false, "PC Halfling Rogue"},
+  {"Balkas",1,33,4, false, "PC Elf Monk"},
+  {"Fire Wolf 1",1,7,2, true, "AC=13 Flame Bite Melee +4 2d4+1 one fire"},   
+  {"Fire Wolf 2",1,7,2, true, "AC=13 Flame Bite Melee +4 2d4+1 one fire"},   
+  {"Fire Sprite",1,7,0, true, "AC=9 Melee Bite +4 2d4 one fire"},  
+  {"Son of Ignis 1",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
+  {"Son of Ignis 2",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
+  {"Son of Ignis 3",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
+  {"Son of Ignis 4",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
+  {"Son of Ignis 5",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},   
+  {"Aiden",1,14,1, true, "AC=13 Spell Caster Melee +3 1d4"}
 };
 
 //-----------------------------------------------------------------------------------------------
