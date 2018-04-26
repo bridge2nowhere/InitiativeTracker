@@ -15,7 +15,7 @@ This is my first large scale project.
 
 The tome is where you define the monster and pc data. Monsters are engaged into combat with their index in the array.
 
-The sameple data is from the <a href="http://www.dmsguild.com/product/219159/Sons-of-Ignis">Son of Igus Adventure</a> created by my friend.
+The sample data is from the <a href="http://www.dmsguild.com/product/219159/Sons-of-Ignis">Son of Igus Adventure</a> created by my friend.
 ```
 0  {"Thio Ki",25,4, false, "PC Human Wizard"},
 1  {"Zenwan",27,2, false, "PC Halfing Rogue"},
