@@ -1,33 +1,33 @@
 #include "Monster.h"
 
-Monster::Monster(char* n, byte r,byte h, int i, bool p, char* d){
-	mName = n;
-	inCombat = false;
-	initRoll = r;
-	hp = h;
-	currhp = hp;
-	initMod = i;
-	npc = p;
-	details = d;
-	
+Monster::Monster(char n[25],byte h, int i, bool p, char d[25]){
+  strcpy(mName , n);
+  inCombat = false;
+  initRoll = 1;
+  hp = h;
+  currhp = hp;
+  initMod = i;
+  npc = p;
+  strcpy(details, d);
 }
 
 
 void Monster::roll(){
-	initRoll = random(1,21) + initMod;
+  initRoll = random(1,21) + initMod;
 }
 
 void Monster::engage(){
-	inCombat = true;
+  inCombat = true;
 }
 
 void Monster::kill(){
-	inCombat = false;
+  inCombat = false;
 }
 
 void Monster::takeHit(int howHard){
-	currhp -= howHard;
-	if (currhp <= 0){
-		kill();
-	}
+  currhp -= howHard;
+  if (currhp <= 0){
+    kill();
+  }
 }
+

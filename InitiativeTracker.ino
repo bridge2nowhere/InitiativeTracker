@@ -5,21 +5,18 @@
 #include <CircularBuffer.h>
 #include <Keypad.h>
 #include "Monster.h"
-//Monster(char* mName,bool inCombat, int initRoll,int hp, int initMod)
-//.roll() updates initRoll with D20+initMod
-//.engage() move to combat
-//.kill() remove from combat
+
 
 
 //-----------------------------------------------------------------------
 //OLED Setup
 
-#define CS_PIN 12
-#define RST_PIN 13
+#define CS_PIN 9
+#define RST_PIN 10
 
 #define DC_PIN 11
-#define MOSI_PIN 9
-#define CLK_PIN 10
+#define MOSI_PIN 13
+#define CLK_PIN 12
 
 SSD1306AsciiSoftSpi oled;
 
@@ -27,45 +24,50 @@ SSD1306AsciiSoftSpi oled;
 
 //----------------------------------------------------------------------------------------------------
 //Keypad Details
-const byte rows = 4; //four rows
-const byte cols = 4; //three columns
-char keys[rows][cols] = {
-  {'1','2','3','H'},  //H hit
+const byte ROWS = 4;
+const byte COLS = 4; 
+char keys[ROWS][COLS] = {
+  {'7','8','9','H'},  //H hit
   {'4','5','6','K'},  //K kill
-  {'7','8','9','G'},  //G go/stop
+  {'1','2','3','G'},  //G go/stop
   {'N','0','@','E'}   //N next, @ at, E enter
 };
-byte rowPins[rows] = {5, 4, 3, 2}; //connect to the row pinouts of the keypad
-byte colPins[cols] = {9, 8, 7, 6}; //connect to the column pinouts of the keypad
-Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, rows, cols );
-
+byte rowPins[ROWS] = {A3, A2, A4, A5}; //connect to the row pinouts of the keypad
+byte colPins[COLS] = {4, 5, 6, 7}; //connect to the column pinouts of the keypad
+Keypad keypad = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+CircularBuffer<char,10> keypadBuffer;
 
 
 
 //----------------------------------------------------------------------------------------------
 //Variables
 const unsigned int MAX_INPUT = 10;
-const int TOME_LENGTH = 12;     //the length of the master tome of players and monsters
+const int TOME_LENGTH = 13;     //the length of the master tome of players and monsters
 CircularBuffer<byte,TOME_LENGTH> turnOrderC;
 //int turnOrder[TOME_LENGTH];    //holds the turn order
 byte turnPosition = 0;           //holds the turn position
 byte turnCounter = 0;
 byte roundCounter = 1;
+byte lastBuilt = 1;
 
-Monster tome[TOME_LENGTH] = {
-  {"Thio Ki",1,25,4, false, "PC Human Wizard"},   
-  {"Zenwan",1,27,2, false, "PC Halfling Rogue"},
-  {"Balkas",1,33,4, false, "PC Elf Monk"},
-  {"Fire Wolf 1",1,7,2, true, "AC=13 Flame Bite Melee +4 2d4+1 one fire"},   
-  {"Fire Wolf 2",1,7,2, true, "AC=13 Flame Bite Melee +4 2d4+1 one fire"},   
-  {"Fire Sprite",1,7,0, true, "AC=9 Melee Bite +4 2d4 one fire"},  
-  {"Son of Ignis 1",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
-  {"Son of Ignis 2",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
-  {"Son of Ignis 3",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
-  {"Son of Ignis 4",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},
-  {"Son of Ignis 5",1,10,1, true, "AC=11 Spell Caster Melee +3 1d4"},   
-  {"Aiden",1,14,1, true, "AC=13 Spell Caster Melee +3 1d4"}
+const Monster PROGMEM masterTome[TOME_LENGTH] = {
+  {"Thio Ki",25,4, false, "PC Human Wizard"},
+  {"Zenwan",27,2, false, "PC Halfing Rogue"},
+  {"Balkas",33,4, false, "PC Elf Monk"},
+  {"Fire Wolf",7,2, true, "AC=13 FlmBte M +4 2d4+1"},   
+  {"Fire Sprite",7,0, true, "AC=9 M-Bite +4 2d4"},  
+  {"Son of Ignis",10,1, true, "AC=11 Spell Caster Melee +3 1d4"},   
+  {"Aiden",14,1, true, "AC=13 Spell Caster Melee +3 1d4"},
+  {"Monster",5,0, true, "Generic with +0 init"},
+  {"Monster",5,1, true, "Generic with +1 init"},
+  {"Monster",5,2, true, "Generic with +2 init"},
+  {"Monster",5,3, true, "Generic with +3 init"},
+  {"Monster",5,4, true, "Generic with +4 init"},
+  {"Monster",5,5, true, "Generic with +5 init"},
 };
+  
+
+CircularBuffer<Monster*,20> engagedBuffer;
 
 //-----------------------------------------------------------------------------------------------
 //General Functions
@@ -74,9 +76,13 @@ void nextTurn();
 void setPCinitiative (const char * data);
 void killMonster (const char * data);
 void takeHit (const char * data);
+void makeMonster(int i); //this version auto rolls 
+void makeMoster(int i,byte r); //this version uses r as the roll
+void multiMonster();
+
 
 //Keypad Fucntions
-void processKeypad();
+void processKeypad(char keypress);
 
 //OLED Functions
 void oledPrintEngage();
@@ -91,10 +97,10 @@ void serialPrintEngage(); //Prints out the initiative list in order of initiativ
 void setup() {
   Serial.begin(9600);
   //Serial Screen Setup
-  Serial.println("Enter number to engage a character");
-  Serial.println("Enter cc@ii to engage and set initiative for a PC");
-  Serial.println("Enter Kcc to kill off a character");
-  Serial.println("Enter G to Get initiative list");
+  Serial.println(F("Enter number to engage a character"));
+  Serial.println(F("Enter cc@ii to engage and set initiative for a PC"));
+  Serial.println(F("Enter Kcc to kill off a character"));
+  Serial.println(F("Enter G to Get initiative list"));
 
   
   //OLED screen setup
@@ -103,8 +109,8 @@ void setup() {
   oled.clear();
   oled.set2X();
   oled.setFont(font8x8);
-  oled.println("Iniative");
-  oled.println("Tracker");
+  oled.println(F("Iniative"));
+  oled.println(F("Tracker"));
   oled.set1X();
   
 }
@@ -112,15 +118,37 @@ void setup() {
 void loop() {
    while (Serial.available () > 0)
     processIncomingByte (Serial.read ());
-   processKeypad();
+   //processKeypad();
+   char key = keypad.getKey();
+
+   if (key){
+    processKeypad(key);
+   }
 }
 
 //-------------------------------------------------------------------
+
+
+void makeMoster(int i){
+	Monster* m = new Monster(masterTome[i].mName,  masterTome[i].hp,  masterTome[i].initMod,  masterTome[i].npc,  masterTome[i].details);
+	m->inCombat = true;
+  m->roll();
+	engagedBuffer.push(m);
+}
+
+void makeMoster(int i,byte r){
+  Monster* m = new Monster(masterTome[i].mName,  masterTome[i].hp,  masterTome[i].initMod,  masterTome[i].npc,  masterTome[i].details);
+  m->inCombat = true;
+  m->initRoll = r;
+  engagedBuffer.push(m);
+}
+
 void determineTurnOrder(){
   turnOrderC.clear();
+  multiMonster();
   for(int i = 40; i >= 0; i --){
-    for(int a = 0; a < TOME_LENGTH; a++){
-      if(tome[a].initRoll == i && tome[a].inCombat == true){
+    for(int a = 0; a < engagedBuffer.size(); a++){
+      if(engagedBuffer[a]->initRoll == i && engagedBuffer[a]->inCombat == true){
         turnOrderC.push(a);
       }
     }
@@ -128,17 +156,15 @@ void determineTurnOrder(){
 }
 
 void serialPrintEngage() {
-  Serial.print("Round");
+  Serial.print(F("Round"));
   Serial.print("\t");
   Serial.print(roundCounter);
   Serial.println("");
   for(byte a = 0; a < turnOrderC.size(); a++){
-      Serial.print(tome[turnOrderC[a]].mName);
+      Serial.print(engagedBuffer[turnOrderC[a]]->mName);
       Serial.print("\t");
       Serial.print("\t");
-      Serial.print(tome[turnOrderC[a]].initRoll);
-      //Serial.print("\t");
-      //Serial.print(tome[turnOrderC[a]].hp);
+      Serial.print(engagedBuffer[turnOrderC[a]]->initRoll);
       Serial.println("");
   }
 }
@@ -152,9 +178,11 @@ void oledPrintEngage(){
   delay(1000);
   oled.setFont(Callibri11);
   for(byte a = 0; a < turnOrderC.size(); a++){
-      oled.print(tome[turnOrderC[a]].mName);
+      oled.print(turnOrderC[a]);
+	    oled.print("--");
+	    oled.print(engagedBuffer[turnOrderC[a]]->mName);
       oled.print("--");
-      oled.print(tome[turnOrderC[a]].initRoll);
+      oled.print(engagedBuffer[turnOrderC[a]]->initRoll);
       oled.println("");
       delay(1000);
   }
@@ -165,13 +193,14 @@ void oledPrintEngage(){
   oled.println("");
 
   oled.setFont(Callibri11);
-  for(byte a = 0; a < 2; a++){
-      oled.print(tome[turnOrderC[a]].mName);
-      oled.print("--");
-      oled.print(tome[turnOrderC[a]].initRoll);
-      oled.println("");
-      
-  }
+  oled.print(engagedBuffer[turnOrderC[0]]->mName);
+  oled.print("--");
+  oled.print(engagedBuffer[turnOrderC[0]]->initRoll);
+  oled.println("");
+  oled.setFont(Stang5x7);
+  oled.println(engagedBuffer[turnOrderC[0]]->details);
+  
+  
      
 }
 
@@ -194,15 +223,28 @@ void process_data (const char * data){
     takeHit(data);
   }
   else{
-    int dataNumType = atoi(data);
-    tome[dataNumType].engage();
-    if(tome[dataNumType].npc == true){
-      tome[dataNumType].roll();
-    }
+    makeMoster(atoi(data));
   }
 }  // end of process_data
 
-void processKeypad(){
+void processKeypad(char keypress){
+  if(keypress == 'E'){
+    char inputLine[keypadBuffer.size()+1];
+    for(byte i = 0; i < keypadBuffer.size(); i++){
+      Serial.print(keypadBuffer[i]);
+      inputLine[i] = keypadBuffer[i];
+    }
+    Serial.println("");
+    inputLine[keypadBuffer.size()+1] = '\0';
+    process_data (inputLine);
+    keypadBuffer.clear();
+    
+  }
+  
+  else{
+    keypadBuffer.push(keypress);
+  }
+
 /*
     byte inputCounter = 0;
     static char data[MAX_INPUT];
@@ -212,15 +254,14 @@ void processKeypad(){
         data[i] = keypadBuffer[i];
         inputCounter = i;
       }
-    }
     data[inputCounter+1] = '\0';
     process_data(data);
     keypadBuffer.clear();
-  }
-  else{
-    keypadBuffer.push(keypress);
-  }
-*/  
+    }
+    else{
+      keypadBuffer.push(keypress);
+    }
+    */
 }
 
 void processIncomingByte (const byte inByte){
@@ -258,14 +299,41 @@ void setPCinitiative (const char * data){
   int pcMonsterInt = atoi(pcMonster);
   char pcInit[3] = {data[3],data[4],'\0'};
   int pcInitInt = atoi(pcInit);
-  tome[pcMonsterInt].initRoll = pcInitInt;
-  tome[pcMonsterInt].engage();
+
+  makeMoster(pcMonsterInt,pcInitInt);
+  
+  
+  //engagedBuffer[pcMonsterInt]->initRoll = pcInitInt;
+  //engagedBuffer[pcMonsterInt]->engage();
+}
+
+void multiMonster(){
+    for(byte active = 0; active < engagedBuffer.size(); active++){
+      CircularBuffer<byte,20> monsterMatch;
+      monsterMatch.push(active);                         //Adds the active index to monsterMatch
+      for(byte compare = 0; compare < engagedBuffer.size(); compare++){
+      if(strcmp(engagedBuffer[active]->mName, engagedBuffer[compare]->mName) == 0 &&  active !=  compare){
+        monsterMatch.push(compare);
+      }
+    }
+    
+    byte apendCounter = 1;
+    if (monsterMatch.size() > 1){
+      for(byte u = 0; u < monsterMatch.size(); u++){
+        char monsterBuffer[4];
+        sprintf(monsterBuffer, " %d", apendCounter);
+        strcat(engagedBuffer[monsterMatch[u]]->mName, monsterBuffer);
+        apendCounter++;
+      }
+    }
+  }
 }
 
 void killMonster (const char * data){
   char cMon[3] = {data[1],data[2],'\0'};
   int cMonInt = atoi(cMon);
-  tome[cMonInt].kill();
+  engagedBuffer[cMonInt]->kill();
+  // engagedBuffer[cMonInt] = NULLPTR;
 }
 
 void nextTurn(){
@@ -282,12 +350,11 @@ void nextTurn(){
   }
 }
 
-
 void takeHit (const char * data){
   char npcMonster[3] = {data[0],data[1],'\0'};
   int npcMonsterInt = atoi(npcMonster);
   char npcHit[3] = {data[3],data[4],'\0'};
   int npcHitInt = atoi(npcHit);
-  tome[npcMonsterInt].takeHit(npcHitInt);
+  engagedBuffer[npcMonsterInt]->takeHit(npcHitInt);
 }
 
